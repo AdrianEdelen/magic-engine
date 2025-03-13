@@ -1,0 +1,23 @@
+name: Dependency Update
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' 
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update Dependencies
+        run: cargo update
+
+      - name: Commit Changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git commit -am "chore: update dependencies"
+          git push

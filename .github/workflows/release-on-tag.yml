@@ -1,0 +1,70 @@
+name: Auto Release on Version Change
+
+on:
+  push:
+    paths:
+      - "Cargo.toml"  # Trigger only when Cargo.toml is updated
+    branches:
+      - main  # Only trigger on the main branch
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Version from Cargo.toml
+        id: cargo_version
+        run: echo "VERSION=$(grep '^version =' Cargo.toml | cut -d '\"' -f2)" >> $GITHUB_ENV
+
+      - name: Check If Tag Already Exists
+        id: check_tag
+        run: |
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag already exists, skipping release."
+            exit 0
+          fi
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Run Tests
+        run: cargo test --verbose
+
+      - name: Create Git Tag
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git tag v$VERSION
+          git push origin v$VERSION
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/magic-engine
+          asset_name: magic-engine
+          asset_content_type: application/octet-stream
