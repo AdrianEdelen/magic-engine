@@ -35,10 +35,17 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
+      - name: Install LLVM Tools
+        run: rustup component add llvm-tools-preview
+
       - name: Install grcov
         run: cargo install grcov
 
       - name: Run Tests with Coverage
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Cinstrument-coverage"
+          LLVM_PROFILE_FILE: "coverage-%p-%m.profraw"
         run: |
             cargo test --no-fail-fast -- --nocapture
             grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o lcov.info
