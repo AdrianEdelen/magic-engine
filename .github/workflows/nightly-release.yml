@@ -3,6 +3,10 @@ name: Nightly Release
 on:
   schedule:
     - cron: '0 0 * * *'  # Runs at midnight UTC every day
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   nightly-build:
@@ -11,6 +15,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
@@ -25,6 +32,9 @@ jobs:
 
       - name: Run Tests
         run: cargo test --verbose
+      
+      - name: Set Release Tag
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Create Release
         id: create_release
@@ -32,8 +42,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: nightly-${{ github.sha }}
-          name: Nightly Build ${{ github.sha }}
+          tag_name: nightly-${{ env.SHORT_SHA }} 
+          name: Nightly Build (${{ env.SHORT_SHA }})
           draft: false
           prerelease: true
 
